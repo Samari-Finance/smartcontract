@@ -1,5 +1,8 @@
+// SPDX-License-Identifier: MIT
+
 pragma solidity ^0.8.0;
 
+//Imports from openzeppelin library
 import "../node_modules/@openzeppelin/contracts/access/AccessControl.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../node_modules/@openzeppelin/contracts/security/Pausable.sol";
@@ -20,8 +23,10 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
     bytes32 public constant TOCENOMICS_ROLE = keccak256("TOCENOMICS_ROLE");
     bytes32 public constant NOLIMIT_ROLE = keccak256("TOCENOMICS_ROLE");
 
+    //Mapping of token and reflection values
     mapping (address => uint256) private _rOwned;
     mapping (address => uint256) private _tOwned;
+
     mapping (address => mapping (address => uint256)) private _allowances;
 
     mapping (address => bool) private _isExcludedFromFee;
@@ -29,11 +34,13 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
     mapping (address => bool) private _isExcluded;
     address[] private _excluded;
    
+   //Calculate initial total supply and total reflection value
     uint256 private constant MAX = ~uint256(0);
     uint256 private _tTotal = 1000000000 * 10**6 * 10**9;
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
 
+    //Define initial contract settings
     string private _name = "Samari";
     string private _symbol = "SAMARI";
     uint8 private _decimals = 9;
@@ -48,86 +55,156 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
     
     address public otherFeeContract;
     
-    
+    //TODO fix initial FeeContract
     constructor () {
+        //initially set the _msgsender to otherFee contract, can't work once we are working with an interface
         otherFeeContract = _msgSender();
+
+        //Send total token amount to contract creator
         _rOwned[_msgSender()] = _rTotal;
+
+        //Give contract creator all roles defined in contract
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _setupRole(SNAPSHOT_ROLE, _msgSender());
         _setupRole(PAUSER_ROLE, _msgSender());
         _setupRole(TOCENOMICS_ROLE, _msgSender());  
         _setupRole(NOLIMIT_ROLE, _msgSender());
-        //exclude owner and this contract from fee
+
+        //exclude owner and this contract from transfer fee
         _isExcludedFromFee[_msgSender()] = true;
         _isExcludedFromFee[address(this)] = true;
         emit Transfer(address(0), _msgSender(), _tTotal);
     }
 
+    /**
+     * @dev Get the token name
+     *
+     */
     function name() public view returns (string memory) {
         return _name;
     }
 
+    /**
+     * @dev Get the token symbol
+     *
+     */
     function symbol() public view returns (string memory) {
         return _symbol;
     }
 
+    /**
+     * @dev Get the decimals for token
+     *
+     */
     function decimals() public view returns (uint8) {
         return _decimals;
     }
 
+    /**
+     * @dev Get the total token supply
+     *
+     */
     function totalSupply() public view override returns (uint256) {
         return _tTotal;
     }
 
+    /**
+     * @dev Get the balance of an address
+     *
+     */
     function balanceOf(address account) public view override returns (uint256) {
         if (_isExcluded[account]) return _tOwned[account];
         return tokenFromReflection(_rOwned[account]);
     }
 
+    /**
+     * @dev Transfer function called by wallet owner
+     *
+     */
     function transfer(address recipient, uint256 amount) public override returns (bool) {
         _transfer(_msgSender(), recipient, amount);
         return true;
     }
 
+    /**
+     * @dev Show how much spender address is able to take from owner wallet
+     *
+     */
     function allowance(address owner, address spender) public view override returns (uint256) {
         return _allowances[owner][spender];
     }
 
+    /**
+     * @dev Approve spender address to take tokens from sender accounts wallet
+     *
+     */
     function approve(address spender, uint256 amount) public override returns (bool) {
         _approve(_msgSender(), spender, amount);
         return true;
     }
 
+    /**
+     * @dev Transfer from address, can be called from different address then sender
+     *
+     * The address calling this function needs to be approved to take this amount of tokens from the sender address if it isnt the sender
+     *
+     */
     function transferFrom(address sender, address recipient, uint256 amount) public override returns (bool) {
         _transfer(sender, recipient, amount);
         _approve(sender, _msgSender(), _allowances[sender][_msgSender()].sub(amount, "ERC20: transfer amount exceeds allowance"));
         return true;
     }
 
+    /**
+     * @dev Decrease the allowance amount, that has been set by the approve function(or this function)
+     *
+     */
     function increaseAllowance(address spender, uint256 addedValue) public virtual returns (bool) {
         _approve(_msgSender(), spender, _allowances[_msgSender()][spender].add(addedValue));
         return true;
     }
 
+    /**
+     * @dev Decrease the allowance amount, that has been set by the approve or increaseAllowance function
+     *
+     */
     function decreaseAllowance(address spender, uint256 subtractedValue) public virtual returns (bool) {
         _approve(_msgSender(), spender, _allowances[_msgSender()][spender].sub(subtractedValue, "ERC20: decreased allowance below zero"));
         return true;
     }
 
+    /**
+     * @dev Check if address is excluded from redistribution rewards
+     *
+     */
     function isExcludedFromReward(address account) public view returns (bool) {
         return _isExcluded[account];
     }
 
+    /**
+     * @dev Get the total fee amount in tokens
+     *
+     */
     function totalFees() public view returns (uint256) {
         return _tFeeTotal;
     }
 
+    //Todo interface needs to be defined
+    /**
+     * @dev Set contract that recieves other fee
+     *
+     */
     function setOtherFeeContract(address contractaddress) public {
         require(hasRole(TOCENOMICS_ROLE, msg.sender));
         require(contractaddress.isContract(), "Address must be a contract!");
         otherFeeContract = contractaddress;
     }
 
+    //Todo understand function usecase
+    /**
+     * @dev Get the current reflection value from token amount
+     *
+     */
     function deliver(uint256 tAmount) public {
         address sender = _msgSender();
         require(!_isExcluded[sender], "Excluded addresses cannot call this function");
@@ -137,6 +214,10 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         _tFeeTotal = _tFeeTotal.add(tAmount);
     }
 
+    /**
+     * @dev Get the current reflection value from token amount
+     *
+     */
     function reflectionFromToken(uint256 tAmount, bool deductTransferFee) public view returns(uint256) {
         require(tAmount <= _tTotal, "Amount must be less than supply");
         if (!deductTransferFee) {
@@ -148,12 +229,22 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         }
     }
 
+    /**
+     * @dev Get token amount based on reflection value
+     *
+     */
     function tokenFromReflection(uint256 rAmount) public view returns(uint256) {
         require(rAmount <= _rTotal, "Amount must be less than total reflections");
         uint256 currentRate =  _getRate();
         return rAmount.div(currentRate);
     }
 
+    /**
+     * @dev Exclude account from redistribution reward
+     *  
+     * Address needs to be included in rewards before
+     *
+     */
     function excludeFromReward(address account) public {
         require(hasRole(TOCENOMICS_ROLE, msg.sender));
         // require(account != 0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D, 'We can not exclude Uniswap router.');
@@ -165,9 +256,15 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         _excluded.push(account);
     }
 
+    /**
+     * @dev Include account in redistribution reward
+     *  
+     * Address needs to be excluded from rewards before
+     *
+     */
     function includeInReward(address account) external {
         require(hasRole(TOCENOMICS_ROLE, msg.sender));
-        require(_isExcluded[account], "Account is already excluded");
+        require(_isExcluded[account], "Account is already included");
         for (uint256 i = 0; i < _excluded.length; i++) {
             if (_excluded[i] == account) {
                 _excluded[i] = _excluded[_excluded.length - 1];
@@ -178,38 +275,56 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
             }
         }
     }
+
     
-    function _transferBothExcluded(address sender, address recipient, uint256 tAmount) private {
-        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tOtherFee) = _getValues(tAmount);
-        _tOwned[sender] = _tOwned[sender].sub(tAmount);
-        _rOwned[sender] = _rOwned[sender].sub(rAmount);
-        _tOwned[recipient] = _tOwned[recipient].add(tTransferAmount);
-        _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);        
-        _takeOtherFee(tOtherFee);
-        _reflectFee(rFee, tFee);
-        emit Transfer(sender, recipient, tTransferAmount);
-    }
-    
+    /**
+     * @dev Exlude address in transferfees
+     *  
+     * Address needs to be included in fees before
+     *
+     */
     function excludeFromFee(address account) public {
         require(hasRole(TOCENOMICS_ROLE, msg.sender));
         _isExcludedFromFee[account] = true;
     }
     
+    /**
+     * @dev Include address in transferfees
+     *  
+     * Address needs to be excluded from fees before
+     *
+     */
     function includeInFee(address account) public {
         require(hasRole(TOCENOMICS_ROLE, msg.sender));
         _isExcludedFromFee[account] = false;
     }
     
+    /**
+     * @dev Set the the value of the fee that is redistributed between holders 
+     *  
+     * Input is in percent
+     *
+     */
     function setTaxFeePercent(uint256 taxFee) external {
         require(hasRole(TOCENOMICS_ROLE, msg.sender));
         _taxFee = taxFee;
     }
     
-    function setOtherFeeFeePercent(uint256 liquidityFee) external {
+    /**
+     * @dev Set the the value of other fees in total 
+     *  
+     * Input is in percent
+     *
+     */
+    function setOtherFeeFeePercent(uint256 otherFee) external {
         require(hasRole(TOCENOMICS_ROLE, msg.sender));
-        _otherFee = liquidityFee;
+        _otherFee = otherFee;
     }
    
+    /**
+     * @dev Set the maximum amount of tokens to be transfered from normal accounts
+     *
+     */
     function setMaxTxPercent(uint256 maxTxPercent) external {
         require(hasRole(TOCENOMICS_ROLE, msg.sender));
         _maxTxAmount = _tTotal.mul(maxTxPercent).div(
@@ -244,19 +359,44 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         require(hasRole(PAUSER_ROLE, _msgSender()), "ERC20PresetMinterPauser: must have pauser role to unpause");
         _unpause();
     }
-    
 
+    /**
+     * @dev Check if address is excluded from transfer fees
+     *
+     */
+    function isExcludedFromFee(address account) public view returns(bool) {
+        return _isExcludedFromFee[account];
+    }
+    
+    /**
+     * @dev Calculate new reflection values and token values based on fee send
+     *
+     * Subtract fee from total reflection amount and add fee to total token fee amount
+     *
+     */
     function _reflectFee(uint256 rFee, uint256 tFee) private {
         _rTotal = _rTotal.sub(rFee);
         _tFeeTotal = _tFeeTotal.add(tFee);
     }
 
+    /**
+     * @dev Get token and reflection values
+     *
+     * Function that combines the following to functions
+     *
+     */
     function _getValues(uint256 tAmount) private view returns (uint256, uint256, uint256, uint256, uint256, uint256) {
         (uint256 tTransferAmount, uint256 tFee, uint256 tOtherFee) = _getTValues(tAmount);
         (uint256 rAmount, uint256 rTransferAmount, uint256 rFee) = _getRValues(tAmount, tFee, tOtherFee, _getRate());
         return (rAmount, rTransferAmount, rFee, tTransferAmount, tFee, tOtherFee);
     }
 
+    /**
+     * @dev Get token values
+     *
+     * Calculate token amounts for transaction that goes to fees and how much is supposed to be send
+     *
+     */
     function _getTValues(uint256 tAmount) private view returns (uint256, uint256, uint256) {
         uint256 tFee = calculateTaxFee(tAmount);
         uint256 tOtherFee = calculateOtherFee(tAmount);
@@ -264,6 +404,12 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         return (tTransferAmount, tFee, tOtherFee);
     }
 
+    /**
+     * @dev Get token reflection values
+     *
+     * Reflection amount of tokens to get how much is subtracted for fees and supposed to be send
+     *
+     */
     function _getRValues(uint256 tAmount, uint256 tFee, uint256 tOtherFee, uint256 currentRate) private pure returns (uint256, uint256, uint256) {
         uint256 rAmount = tAmount.mul(currentRate);
         uint256 rFee = tFee.mul(currentRate);
@@ -272,11 +418,22 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         return (rAmount, rTransferAmount, rFee);
     }
 
+    /**
+     * @dev Get current rate between token ammount and refelction amount
+     *
+     * Is used to calculate what the current reflection amount is worth in actual tokens.
+     *
+     */
     function _getRate() private view returns(uint256) {
         (uint256 rSupply, uint256 tSupply) = _getCurrentSupply();
         return rSupply.div(tSupply);
     }
 
+    //TODO fix array?
+    /**
+     * @dev Internal function to calculate current supply based on token amounts and reflected amounts
+     *
+     */
     function _getCurrentSupply() private view returns(uint256, uint256) {
         uint256 rSupply = _rTotal;
         uint256 tSupply = _tTotal;      
@@ -289,6 +446,12 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         return (rSupply, tSupply);
     }
     
+
+    //TODO fix fee contract
+    /**
+     * @dev Internal function to send other fee amounts to proxy contract
+     *
+     */
     function _takeOtherFee(uint256 tOtherFee) private {
         uint256 currentRate =  _getRate();
         uint256 rOtherFee = tOtherFee.mul(currentRate);
@@ -297,6 +460,10 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
             _tOwned[otherFeeContract] = _tOwned[otherFeeContract].add(tOtherFee);
     }
     
+    /**
+     * @dev Helper functions to calculate fees
+     *
+     */
     function calculateTaxFee(uint256 _amount) private view returns (uint256) {
         return _amount.mul(_taxFee).div(
             10**2
@@ -309,6 +476,12 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         );
     }
     
+    /**
+     * @dev Internal functions to temporary remove fee during one transaction
+     *
+     *  Set fee to 0 during one transaction to make it simpler to calculate transfer values
+     *
+     */
     function removeAllFee() private {
         if(_taxFee == 0 && _otherFee == 0) return;
         
@@ -323,11 +496,14 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         _taxFee = _previousTaxFee;
         _otherFee = _previousOtherFee;
     }
-    
-    function isExcludedFromFee(address account) public view returns(bool) {
-        return _isExcludedFromFee[account];
-    }
 
+    /**
+     * @dev Approve other address to remove tokens from wallet
+     *
+     *  Since pankacke swap and other sites need to remove tokens from the users wallet 
+     *  it needs to be approved by the wallet the amount is removed from.
+     *
+     */
     function _approve(address owner, address spender, uint256 amount) private {
         require(owner != address(0), "ERC20: approve from the zero address");
         require(spender != address(0), "ERC20: approve to the zero address");
@@ -336,12 +512,13 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         emit Approval(owner, spender, amount);
     }
 
-    function _beforeTokenTransfer(address from, address to, uint256 amount) private {
-        if(!hasRole(NOLIMIT_ROLE, from)){
-            require(!paused(), "ERC20Pausable: token transfer while paused");
-        }
-    }
-
+    /**
+     * @dev Internal transferfunction to check requirements for transfer
+     *
+     *  Check if requires are satisfied and check if sender or recipient is excluded from the fee.
+     *  Avoid sending too much during one transaction for whales
+     *
+     */
     function _transfer(
         address from,
         address to,
@@ -351,10 +528,14 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         require(from != address(0), "ERC20: transfer from the zero address");
         require(to != address(0), "ERC20: transfer to the zero address");
         require(amount > 0, "Transfer amount must be greater than zero");
+
+        //If user has no limit role there is no maximum transfer amount. TODO: change role! Add anti whale function
         if(!hasRole(NOLIMIT_ROLE, from) && !hasRole(NOLIMIT_ROLE, to))
             require(amount <= _maxTxAmount, "Transfer amount exceeds the maxTxAmount.");
 
-        _beforeTokenTransfer(from, to, amount);  
+        //Check if contract is paused, only specific
+        if(!hasRole(NOLIMIT_ROLE, from))
+            require(!paused(), "ERC20Pausable: token transfer while paused");
 
         //indicates if fee should be deducted from transfer
         bool takeFee = true;
@@ -368,7 +549,12 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         _tokenTransfer(from,to,amount,takeFee);
     }
 
-    //this method is responsible for taking all fee, if takeFee is true
+    /**
+     * @dev Check if sender or reciever is excluded from reward and use the right transfer functions based on this
+     *
+     *  Disable fee, if this transaction is excluded from fees. Check if sender or/and reciever is excluded from rewards
+     *  to check if token balance or/and reflection balance need to be added to reciepient addres and subtracted from sender
+     */
     function _tokenTransfer(address sender, address recipient, uint256 amount,bool takeFee) private {
         if(!takeFee)
             removeAllFee();
@@ -385,10 +571,17 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
             _transferStandard(sender, recipient, amount);
         }
         
+        //Make sure that next transactions have a fee if they aren't excluded
         if(!takeFee)
             restoreAllFee();
     }
 
+    /**
+     * @dev Transfer function when both sender and reciever are included in rewards
+     *
+     *  Remove the reflection amount from sender and add reflection amount to sender
+     *
+     */
     function _transferStandard(address sender, address recipient, uint256 tAmount) private {
         (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tOtherFee) = _getValues(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
@@ -398,6 +591,12 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
+    /**
+     * @dev Transfer function when reciever is exluded from rewards
+     *
+     *  Remove the reflection amount from sender and only add reflection and token amount to sender
+     *
+     */
     function _transferToExcluded(address sender, address recipient, uint256 tAmount) private {
         (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tOtherFee) = _getValues(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
@@ -408,11 +607,34 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         emit Transfer(sender, recipient, tTransferAmount);
     }
 
+    /**
+     * @dev Transfer function when sender is exluded from rewards
+     *
+     *  Remove the token and reflection amount from sender and only add reflection amount to sender
+     *
+     */
     function _transferFromExcluded(address sender, address recipient, uint256 tAmount) private {
         (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tOtherFee) = _getValues(tAmount);
         _tOwned[sender] = _tOwned[sender].sub(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);   
+        _takeOtherFee(tOtherFee);
+        _reflectFee(rFee, tFee);
+        emit Transfer(sender, recipient, tTransferAmount);
+    }
+
+    /**
+     * @dev Transfer function when sender and reciever is excluded from rewards
+     *
+     *  Remove the token and reflection amount from sender and add reflection and token amount to sender
+     *
+     */
+    function _transferBothExcluded(address sender, address recipient, uint256 tAmount) private {
+        (uint256 rAmount, uint256 rTransferAmount, uint256 rFee, uint256 tTransferAmount, uint256 tFee, uint256 tOtherFee) = _getValues(tAmount);
+        _tOwned[sender] = _tOwned[sender].sub(tAmount);
+        _rOwned[sender] = _rOwned[sender].sub(rAmount);
+        _tOwned[recipient] = _tOwned[recipient].add(tTransferAmount);
+        _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);        
         _takeOtherFee(tOtherFee);
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
