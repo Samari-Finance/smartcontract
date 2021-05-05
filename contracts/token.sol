@@ -10,9 +10,13 @@ import "../node_modules/@openzeppelin/contracts/utils/Address.sol";
 import "../node_modules/@openzeppelin/contracts/access/AccessControl.sol";
 import "../node_modules/@openzeppelin/contracts/utils/math/SafeMath.sol";
 
+interface otherFeeReciever {
+    function tokensSend() external;
+}
+
 contract Samari is Context, IERC20, Pausable, AccessControl {
 
-    //using safe math even though its not needed anymore
+    //using safe math to not rewrite even though its not needed anymore
     using SafeMath for uint256;
 
     using Address for address;
@@ -58,8 +62,6 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
     //TODO fix initial FeeContract
     constructor () {
         //initially set the _msgsender to otherFee contract, can't work once we are working with an interface
-        otherFeeContract = _msgSender();
-
         //Send total token amount to contract creator
         _rOwned[_msgSender()] = _rTotal;
 
@@ -198,6 +200,7 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         require(hasRole(TOCENOMICS_ROLE, msg.sender));
         require(contractaddress.isContract(), "Address must be a contract!");
         otherFeeContract = contractaddress;
+        otherFeeReciever(otherFeeContract).tokensSend();
     }
 
     //Todo understand function usecase
@@ -574,6 +577,8 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         //Make sure that next transactions have a fee if they aren't excluded
         if(!takeFee)
             restoreAllFee();
+        else
+            otherFeeReciever(otherFeeContract).tokensSend();
     }
 
     /**
