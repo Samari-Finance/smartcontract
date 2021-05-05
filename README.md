@@ -1,4 +1,4 @@
-# To use run:
+# To use:
 
 npm install @openzeppelin/contracts
 
