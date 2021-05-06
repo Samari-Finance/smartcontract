@@ -11,7 +11,7 @@ import "../node_modules/@openzeppelin/contracts/access/AccessControl.sol";
 import "../node_modules/@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 interface otherFeeReciever {
-    function tokensSend() external;
+    function tokensSend(uint256) external;
 }
 
 contract Samari is Context, IERC20, Pausable, AccessControl {
@@ -59,7 +59,7 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
     
     address public otherFeeContract;
     
-    //TODO fix initial FeeContract
+    //TODO What to do with initial fee contract? should it be created from here?
     constructor () {
         //initially set the _msgsender to otherFee contract, can't work once we are working with an interface
         //Send total token amount to contract creator
@@ -196,16 +196,18 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
      * @dev Set contract that recieves other fee
      *
      */
-    function setOtherFeeContract(address contractaddress) public {
+    function setOtherFeeContract(address contractaddress, address uniswaprouter) public {
         require(hasRole(TOCENOMICS_ROLE, msg.sender));
         require(contractaddress.isContract(), "Address must be a contract!");
+        _approve(contractaddress, uniswaprouter, MAX);
         otherFeeContract = contractaddress;
-        otherFeeReciever(otherFeeContract).tokensSend();
+        excludeFromFee(contractaddress);
+        excludeFromReward(contractaddress);
+        otherFeeReciever(otherFeeContract).tokensSend(0);
     }
 
-    //Todo understand function usecase
     /**
-     * @dev Get the current reflection value from token amount
+     * @dev Change reflected amount to tokens
      *
      */
     function deliver(uint256 tAmount) public {
@@ -459,7 +461,7 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         uint256 currentRate =  _getRate();
         uint256 rOtherFee = tOtherFee.mul(currentRate);
         _rOwned[otherFeeContract] = _rOwned[otherFeeContract].add(rOtherFee);
-        if(_isExcluded[address(this)])
+        if(_isExcluded[otherFeeContract])
             _tOwned[otherFeeContract] = _tOwned[otherFeeContract].add(tOtherFee);
     }
     
@@ -515,6 +517,7 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         emit Approval(owner, spender, amount);
     }
 
+    //Todo call proxy contract recieve function and avoid a race condition!!!
     /**
      * @dev Internal transferfunction to check requirements for transfer
      *
@@ -578,7 +581,7 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         if(!takeFee)
             restoreAllFee();
         else
-            otherFeeReciever(otherFeeContract).tokensSend();
+            otherFeeReciever(otherFeeContract).tokensSend(1);
     }
 
     /**
