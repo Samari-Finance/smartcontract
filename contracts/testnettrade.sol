@@ -13,7 +13,7 @@ contract UniswapExample {
     uniswapRouter = IUniswapV2Router02(UNISWAP_ROUTER_ADDRESS);
   }
 
-  function convertEthToDai(uint daiAmount) public payable {
+  function convertEthToSamari(uint daiAmount) public payable {
     uint deadline = block.timestamp + 15; // using 'now' for convenience, for mainnet pass deadline from frontend!
     uniswapRouter.swapETHForExactTokens{ value: msg.value }(daiAmount, getPathForETHtoDAI(), address(this), deadline);
     
@@ -21,15 +21,22 @@ contract UniswapExample {
     (bool success,) = msg.sender.call{ value: address(this).balance }("");
     require(success, "refund failed");
   }
+
+  function convertSamaritoBNB(uint samariAmount) public payable {
+    uint deadline = block.timestamp + 15; // using 'now' for convenience, for mainnet pass deadline from frontend!
+    uniswapRouter.swapExactTokensForETH(samariAmount, 0, getPathForETHtoDAI(), address(this), deadline);
+    
+    // refund leftover ETH to user
+  }
   
-  function getEstimatedETHforDAI(uint daiAmount) public view returns (uint[] memory) {
+  function getEstimatedETHforSamari(uint daiAmount) public view returns (uint[] memory) {
     return uniswapRouter.getAmountsIn(daiAmount, getPathForETHtoDAI());
   }
 
   function getPathForETHtoDAI() private view returns (address[] memory) {
     address[] memory path = new address[](2);
-    path[0] = multiDaiKovan;
-    path[1] = uniswapRouter.WETH();
+    path[1] = multiDaiKovan;
+    path[2] = uniswapRouter.WETH();
     
     return path;
   }

@@ -12,6 +12,7 @@ import "../node_modules/@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 interface otherFeeReciever {
     function tokensSend(uint256) external;
+    function beforeSend(address, uint256) external;
 }
 
 contract Samari is Context, IERC20, Pausable, AccessControl {
@@ -40,7 +41,7 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
    
    //Calculate initial total supply and total reflection value
     uint256 private constant MAX = ~uint256(0);
-    uint256 private _tTotal = 1000000000 * 10**6 * 10**9;
+    uint256 private _tTotal = 1240727448873 * 10**9;
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
 
@@ -55,9 +56,9 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
     uint256 public _otherFee = 5;
     uint256 private _previousOtherFee = _otherFee;
     
-    uint256 public _maxTxAmount = 5000000 * 10**6 * 10**9;
+    uint256 public _maxTxAmount = 12407274488 * 10**9;
     
-    address public otherFeeContract;
+    otherFeeReciever public proxyContract;
     
     //TODO What to do with initial fee contract? should it be created from here?
     constructor () {
@@ -196,14 +197,14 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
      * @dev Set contract that recieves other fee
      *
      */
-    function setOtherFeeContract(address contractaddress, address uniswaprouter) public {
+    function setproxyContract(address contractaddress, address uniswaprouter) public {
         require(hasRole(TOCENOMICS_ROLE, msg.sender));
         require(contractaddress.isContract(), "Address must be a contract!");
         _approve(contractaddress, uniswaprouter, MAX);
-        otherFeeContract = contractaddress;
+        proxyContract = otherFeeReciever(contractaddress);
         excludeFromFee(contractaddress);
         excludeFromReward(contractaddress);
-        otherFeeReciever(otherFeeContract).tokensSend(0);
+        proxyContract.tokensSend(0);
     }
 
     /**
@@ -460,9 +461,9 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
     function _takeOtherFee(uint256 tOtherFee) private {
         uint256 currentRate =  _getRate();
         uint256 rOtherFee = tOtherFee.mul(currentRate);
-        _rOwned[otherFeeContract] = _rOwned[otherFeeContract].add(rOtherFee);
-        if(_isExcluded[otherFeeContract])
-            _tOwned[otherFeeContract] = _tOwned[otherFeeContract].add(tOtherFee);
+        _rOwned[address(proxyContract)] = _rOwned[address(proxyContract)].add(rOtherFee);
+        if(_isExcluded[address(proxyContract)])
+            _tOwned[address(proxyContract)] = _tOwned[address(proxyContract)].add(tOtherFee);
     }
     
     /**
@@ -536,8 +537,10 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         require(amount > 0, "Transfer amount must be greater than zero");
 
         //If user has no limit role there is no maximum transfer amount. TODO: change role! Add anti whale function
-        if(!hasRole(NOLIMIT_ROLE, from) && !hasRole(NOLIMIT_ROLE, to))
+        if(!hasRole(NOLIMIT_ROLE, from))
             require(amount <= _maxTxAmount, "Transfer amount exceeds the maxTxAmount.");
+            //antiwhale function upgradable in the future
+            proxyContract.beforeSend(from, amount);
 
         //Check if contract is paused, only specific
         if(!hasRole(NOLIMIT_ROLE, from))
@@ -581,7 +584,7 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         if(!takeFee)
             restoreAllFee();
         else
-            otherFeeReciever(otherFeeContract).tokensSend(1);
+            proxyContract.tokensSend(calculateOtherFee(amount));
     }
 
     /**

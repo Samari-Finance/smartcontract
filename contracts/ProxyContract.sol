@@ -7,20 +7,34 @@ import "../node_modules/@openzeppelin/contracts/access/AccessControl.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./uniswapinterface.sol";
 
-interface otherFeeReciever {
+interface proxyContract {
     function tokensSend(uint256) external;
+    function beforeSend(address, uint256) external;
 }
 
-contract feeProxy is Context, AccessControl, otherFeeReciever  {
-    
+contract ProxyFunctions is Context, AccessControl, proxyContract  {
+
+        bytes32 public constant WITHDRAWER_ROLE = keccak256("WITHDRAWER_ROLE");
+        bytes32 public constant TOKEN_ROLE = keccak256("TOKEN_ROLE");
+        
+        mapping (address => uint256) private _sendamount;
+        mapping (address => uint256) private _timerstart;
+
         //Modifiable values
+        //Tocenomics
         //Need to be 100 in total
-        uint256 public minimumsellamount = 10 * 10**6 * 10**9;
+        uint8 private decimals = 9;
+        uint256 public minimumsellamount = 12407274 * 10**decimals;
 
         uint256 public _liquidityFee = 50;
         uint256 public _donationFee = 20;
         uint256 public _marketingFee = 20;
         uint256 public _otherFee = 10;
+
+        //Antiwhale
+        uint256 private _timelimit = 6 hours;
+        uint256 private _maxsellamount = 32407274488 * 10**decimals;
+
 
         address private immutable _uniswaprouter; //testnet value
         
@@ -35,6 +49,8 @@ contract feeProxy is Context, AccessControl, otherFeeReciever  {
 
         //Needs to be changed
         constructor (address tokenaddress) { 
+            _setupRole(WITHDRAWER_ROLE, _msgSender());
+            _setupRole(TOKEN_ROLE, tokenaddress);
             address uniswaprouter = 0xD99D1c33F9fC3444f8101754aBC46c52416550D1;
             _uniswaprouter = uniswaprouter;
             _token = IERC20(tokenaddress);    
@@ -48,22 +64,37 @@ contract feeProxy is Context, AccessControl, otherFeeReciever  {
             uniswapV2Pair = tmpuniswapV2Pair;
         }
         
+        function beforeSend(address sender, uint256 amount) external override{
+            if(block.timestamp > (_timerstart[sender]+_timelimit)){
+                _timerstart[sender] = block.timestamp;
+                _sendamount[sender] = 0;
+                require(amount <= _maxsellamount, "You can't sell this much at once!");
+                _sendamount[sender] = amount;
+            }
+            else{
+                require(amount <= (_maxsellamount-_sendamount[sender]), "You have reached your sell limit within the cooldown!");
+            }
+            
+        }
+
         /**
         * @dev Contract needs to receive/hold BNB.
         */
         receive() external payable {}
         
+
         function tokensSend(uint256 amount) external override {
+            require(hasRole(TOKEN_ROLE, msg.sender), "You are not allowed to call this function!");
             if(amount == 0){
                 emit TokensRecieved(0);
                 return;
             }
-            emit TokensRecieved(amount);
             uint256 balance = _token.balanceOf(address(this));
+            require(balance >= amount, "An error occured in proxy contract!");
             if(balance < minimumsellamount){
                 return;
             }
-            // split the contract balance into halves
+            // split the LiquidityFee balance into halves
             uint256 liquidityfee = balance * _liquidityFee / 100;
             uint256 otherfees = balance * (100-_liquidityFee) / 100;
 
@@ -83,7 +114,7 @@ contract feeProxy is Context, AccessControl, otherFeeReciever  {
             // how much ETH did we just swap into?
 
             // add liquidity to uniswap
-            
+            emit TokensRecieved(amount);
             emit SwapAndLiquify(liquidityfee/2, newBalance);
         }
 
@@ -123,12 +154,14 @@ contract feeProxy is Context, AccessControl, otherFeeReciever  {
     } */
 
     function send(address payable reciever, uint256 amount) public {
+            require(hasRole(WITHDRAWER_ROLE, msg.sender), "You are not allowed to call this function!");
             require(amount > 0, "You need to send more than 0!");
             require(address(this).balance <= amount, "There isnt enough BNB in this contract!");
             reciever.transfer(amount);
     }
         
     function sendMax(address payable reciever) public {
+            require(hasRole(WITHDRAWER_ROLE, msg.sender), "You are not allowed to call this function!");
             require(address(this).balance > 0, "There is no BNB in this contract!");
             reciever.transfer(address(this).balance);
     }
