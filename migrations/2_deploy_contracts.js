@@ -1,6 +1,5 @@
 var Samari = artifacts.require("Samari");
 var ProxyFunctions = artifacts.require("ProxyFunctions");
-var UniswapExample = artifacts.require("UniswapExample");
 module.exports = async function(deployer) {
     await Promise.all([
         deployer.deploy(Samari)
@@ -11,11 +10,9 @@ module.exports = async function(deployer) {
     SamariInst = instances[0];
     await Promise.all([
         deployer.deploy(ProxyFunctions, SamariInst.address),
-        deployer.deploy(UniswapExample, SamariInst.address)
     ]);
     instances = await Promise.all([
         ProxyFunctions.deployed(),
-        UniswapExample.deployed()
     ])
     ProxyFunctionsInst = instances[0];
 
