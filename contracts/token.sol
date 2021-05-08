@@ -60,6 +60,14 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
 
     address public proxycontract;
 
+    bool private inSwapAndLiquify = false;
+
+    modifier lockTheSwap {
+        inSwapAndLiquify = true;
+        _;
+        inSwapAndLiquify = false;
+    }
+
     //TODO What to do with initial fee contract? should it be created from here?
     constructor() {
         //initially set the _msgsender to otherFee contract, can't work once we are working with an interface
@@ -237,29 +245,29 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         return _tFeeTotal;
     }
 
-    //Todo interface needs to be defined
+    //No check for interface? Can it be done?
     /**
      * @dev Set contract that recieves other fee
      *
      */
-    function setproxyContract(address contractaddress, address uniswappair)
+    function setproxyContract(address contractaddress)
         public onlyRole(DEFAULT_ADMIN_ROLE)
     {
-        require(contractaddress.isContract(), "Address must be a contract!");
+        address uniswappair = IproxyContract(contractaddress).getPair();
         //Garant pool role for swapping functions
         grantRole(POOL_ROLE, uniswappair);
+        grantRole(NOLIMIT_ROLE, uniswappair);
+        grantRole(NOLIMIT_ROLE, contractaddress);
         proxycontract = contractaddress;
-        excludeFromFee(contractaddress);
-        excludeFromReward(contractaddress);
-        IproxyContract(proxycontract).tokensSend(0);
-        proxyenabled = true;
+        _isExcludedFromFee[contractaddress] = true;
+        _isExcluded[contractaddress] = true;
     }
 
     function changeProxyState(bool newstate) public onlyRole(TOCENOMICS_ROLE){
         proxyenabled = newstate;
     }
 
-    function setAntiWhale(bool newstate) public onlyRole(TOCENOMICS_ROLE){
+    function changeAntiWhaleState(bool newstate) public onlyRole(TOCENOMICS_ROLE){
         antiwhale = newstate;
     }
 
@@ -646,32 +654,50 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
             require(!paused(), "ERC20Pausable: token transfer while paused");
         }
 
-        //If user has no limit role there is no maximum transfer amount. TODO: change role! Add anti whale function
-        if (!hasRole(NOLIMIT_ROLE, from)) {
-            require(
-                amount <= _maxTxAmount,
-                "Transfer amount exceeds the maxTxAmount."
-            );
+        if(inSwapAndLiquify){
+            _tokenTransfer(from, to, amount, false);
         }
+        else {
+            //If user has no limit role there is no maximum transfer amount. TODO: change role! Add anti whale function
+            // if (!hasRole(NOLIMIT_ROLE, from)) {
+            //     require(
+            //         amount <= _maxTxAmount,
+            //         "Transfer amount exceeds the maxTxAmount."
+            //     );
+            // }
 
-        //antiwhale function upgradable in the future
-        if(antiwhale){
-            if(hasRole(POOL_ROLE, to) || from != proxycontract){
-                IproxyContract(proxycontract).beforeSend(from, amount);
+            //antiwhale function upgradable in the future
+            if(antiwhale){
+                if(hasRole(POOL_ROLE, to) && !hasRole(NOLIMIT_ROLE, from)){
+                    IproxyContract(proxycontract).beforeSend(from, amount);
+                }
+            }
+
+
+            //indicates if fee should be deducted from transfer
+            bool takeFee = true;
+
+            //if any account belongs to _isExcludedFromFee account then remove the fee
+            if (_isExcludedFromFee[from] || _isExcludedFromFee[to]) {
+                takeFee = false;
+            }
+
+            //transfer amount, it will take tax, burn, liquidity fee
+            _tokenTransfer(from, to, amount, takeFee);
+
+            if(proxyenabled && takeFee && !hasRole(POOL_ROLE, from)){
+                swapAndLiquify();
             }
         }
 
 
-        //indicates if fee should be deducted from transfer
-        bool takeFee = true;
+    }
 
-        //if any account belongs to _isExcludedFromFee account then remove the fee
-        if (_isExcludedFromFee[from] || _isExcludedFromFee[to]) {
-            takeFee = false;
-        }
+    function swapAndLiquify() private lockTheSwap {
+        // split the contract balance into halves
+        uint256 newproxybalance = balanceOf(proxycontract);
+        IproxyContract(proxycontract).tokensSend(newproxybalance);
 
-        //transfer amount, it will take tax, burn, liquidity fee
-        _tokenTransfer(from, to, amount, takeFee);
     }
 
     /**
@@ -705,9 +731,6 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         //Make sure that next transactions have a fee if they aren't excluded
         if (!takeFee) {
             restoreAllFee();
-        }
-        else if(proxyenabled){
-            IproxyContract(proxycontract).tokensSend(calculateOtherFee(amount));
         }
     }
 

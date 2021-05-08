@@ -37,9 +37,10 @@ contract ProxyFunctions is Context, AccessControl, IproxyContract {
     uint256 public otherbalance = 0;
     //Antiwhale
     uint256 private _timelimit = 3 hours;
-    uint256 private _maxsellamount = 32407274488 * 10**decimals;
+    uint256 private _maxsellamount = 124072744 * 10**decimals;
 
-    address private immutable _uniswaprouter; //testnet value
+
+    address private immutable _uniswaprouter; 
 
     IERC20 private immutable _token;
 
@@ -91,27 +92,26 @@ contract ProxyFunctions is Context, AccessControl, IproxyContract {
         }
     }
 
+    function getPair() external view override returns (address){
+        return uniswapV2Pair;
+    }
+
     /**
      * @dev Contract needs to receive/hold BNB.
      */
     receive() external payable {}
 
     //Function is called after tokens are send to trade to bnb and add liquidity
-    function tokensSend(uint256 amount) external override {
+    function tokensSend(uint256 balance) external override {
         require(
             hasRole(TOKEN_ROLE, msg.sender),
             "You are not allowed to call this function!"
         );
-        if (amount == 0) {
-            emit TokensRecieved(0);
-            return;
-        }
-        uint256 balance = _token.balanceOf(address(this));
-        _token.approve(_uniswaprouter, amount);
-        require(balance >= amount, "An error occured in proxy contract!");
+
         if (balance < minimumsellamount) {
             return;
         }
+        _token.approve(_uniswaprouter, balance);
         // split the LiquidityFee balance into halves
         uint256 liquidityfee = (balance * _liquidityFee) / 100;
         uint256 otherfees = (balance * (100 - _liquidityFee)) / 100;
@@ -132,7 +132,7 @@ contract ProxyFunctions is Context, AccessControl, IproxyContract {
         // how much ETH did we just swap into?
 
         // add liquidity to uniswap
-        emit TokensRecieved(amount);
+        emit TokensRecieved(balance);
         emit SwapAndLiquify(liquidityfee / 2, newBalance);
     }
 
@@ -161,7 +161,7 @@ contract ProxyFunctions is Context, AccessControl, IproxyContract {
             tokenAmount,
             0, // slippage is unavoidable
             0, // slippage is unavoidable
-            address(0),
+            address(this),
             block.timestamp
         );
     }

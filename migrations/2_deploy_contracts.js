@@ -9,7 +9,7 @@ module.exports = async function(deployer) {
     ])
     SamariInst = instances[0];
     await Promise.all([
-        deployer.deploy(ProxyFunctions, SamariInst.address),
+        deployer.deploy(ProxyFunctions, SamariInst.address)
     ]);
     instances = await Promise.all([
         ProxyFunctions.deployed(),
@@ -18,7 +18,9 @@ module.exports = async function(deployer) {
 
     
     results = await Promise.all([
-        SamariInst.setproxyContract(ProxyFunctionsInst.address, "0xD99D1c33F9fC3444f8101754aBC46c52416550D1")
+        SamariInst.setproxyContract(ProxyFunctionsInst.address),
+        SamariInst.changeProxyState(true),
+        SamariInst.changeAntiWhaleState(true)
     ]);
     
 };
