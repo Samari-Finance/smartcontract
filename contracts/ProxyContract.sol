@@ -52,13 +52,12 @@ contract ProxyFunctions is Context, AccessControl, IproxyContract {
     event SwapAndLiquify(uint256, uint256);
 
     //Needs to be changed
-    constructor(address tokenaddress) {
+    constructor(address tokenaddress, address uniswaprouter) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _setupRole(DONTATIONWITHDRAW_ROLE, _msgSender());
         _setupRole(MARKETINGWITHDRAW_ROLE, _msgSender());
         _setupRole(OTHERWITHDRAW_ROLE, _msgSender());
         _setupRole(TOKEN_ROLE, tokenaddress);
-        address uniswaprouter = 0xD99D1c33F9fC3444f8101754aBC46c52416550D1;
         _uniswaprouter = uniswaprouter;
         _token = IERC20(tokenaddress);
         IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(uniswaprouter);
@@ -115,7 +114,7 @@ contract ProxyFunctions is Context, AccessControl, IproxyContract {
         // split the LiquidityFee balance into halves
         uint256 liquidityfee = (balance * _liquidityFee) / 100;
         uint256 otherfees = (balance * (100 - _liquidityFee)) / 100;
-
+        
         swapTokensForEth(otherfees);
         // capture the contract's current ETH balance.
         // this is so that we can capture exactly the amount of ETH that the
@@ -128,7 +127,7 @@ contract ProxyFunctions is Context, AccessControl, IproxyContract {
 
         uint256 newBalance = address(this).balance - initialBalance;
 
-        addLiquidity(liquidityfee / 2, newBalance);
+        //addLiquidity(liquidityfee / 2, newBalance);
         // how much ETH did we just swap into?
 
         // add liquidity to uniswap

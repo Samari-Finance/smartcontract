@@ -46,8 +46,8 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
     bool public proxyenabled = false;
 
     //Define initial contract settings
-    string private _name = "Samari";
-    string private _symbol = "SAMARI";
+    string private _name = "ASDF";
+    string private _symbol = "ASDFFF";
     uint8 private _decimals = 9;
 
     uint256 public _taxFee = 5;
@@ -682,12 +682,12 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
                 takeFee = false;
             }
 
-            //transfer amount, it will take tax, burn, liquidity fee
-            _tokenTransfer(from, to, amount, takeFee);
-
             if(proxyenabled && takeFee && !hasRole(POOL_ROLE, from)){
                 swapAndLiquify();
             }
+
+            //transfer amount, it will take tax, burn, liquidity fee
+            _tokenTransfer(from, to, amount, takeFee);
         }
 
 
