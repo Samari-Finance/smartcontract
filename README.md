@@ -1,7 +1,5 @@
 # To use:
 
-npm install @openzeppelin/contracts
-
 npm install -g truffle
 
 npm uninstall @truffle/hdwallet-provider
