@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
-import "../node_modules/@openzeppelin/contracts/access/AccessControl.sol";
+import "../node_modules/@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./uniswapinterface.sol";
 import "./proxyinterface.sol";
 
-contract ProxyFunctions is Context, AccessControl, IproxyContract {
+contract ProxyFunctions is Context, IproxyContract, AccessControlEnumerable {
     bytes32 public constant DONTATIONWITHDRAW_ROLE =
         keccak256("DONTATIONWITHDRAW_ROLE");
     bytes32 public constant MARKETINGWITHDRAW_ROLE =

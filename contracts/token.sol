@@ -3,14 +3,14 @@
 pragma solidity ^0.8.0;
 
 //Imports from openzeppelin library
-import "../node_modules/@openzeppelin/contracts/access/AccessControl.sol";
+import "../node_modules/@openzeppelin/contracts/access/AccessControlEnumerable.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../node_modules/@openzeppelin/contracts/security/Pausable.sol";
 import "../node_modules/@openzeppelin/contracts/utils/Address.sol";
 import "../node_modules/@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./proxyinterface.sol";
 
-contract Samari is Context, IERC20, Pausable, AccessControl {
+contract Samari is Context, IERC20, Pausable, AccessControlEnumerable {
     //using safe math to not rewrite even though its not needed anymore
     using SafeMath for uint256;
 
