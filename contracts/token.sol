@@ -7,7 +7,6 @@ import "../node_modules/@openzeppelin/contracts/access/AccessControl.sol";
 import "../node_modules/@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../node_modules/@openzeppelin/contracts/security/Pausable.sol";
 import "../node_modules/@openzeppelin/contracts/utils/Address.sol";
-import "../node_modules/@openzeppelin/contracts/access/AccessControl.sol";
 import "../node_modules/@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./proxyinterface.sol";
 
@@ -46,8 +45,8 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
     bool public proxyenabled = false;
 
     //Define initial contract settings
-    string private _name = "ASDF";
-    string private _symbol = "ASDFFF";
+    string private _name = "ASDFTEST";
+    string private _symbol = "ASDFFFTEST";
     uint8 private _decimals = 9;
 
     uint256 public _taxFee = 5;
@@ -245,7 +244,6 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         return _tFeeTotal;
     }
 
-    //No check for interface? Can it be done?
     /**
      * @dev Set contract that recieves other fee
      *
@@ -253,6 +251,7 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
     function setproxyContract(address contractaddress)
         public onlyRole(DEFAULT_ADMIN_ROLE)
     {
+        //If interface doesn't fit this function fails
         address uniswappair = IproxyContract(contractaddress).getPair();
         //Garant pool role for swapping functions
         grantRole(POOL_ROLE, uniswappair);
@@ -562,20 +561,20 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         return (rSupply, tSupply);
     }
 
-    //TODO fix fee contract
     /**
      * @dev Internal function to send other fee amounts to proxy contract
      *
      */
-    function _takeOtherFee(uint256 tOtherFee) private {
+    function _takeOtherFee(uint256 tOtherFee, address sender) private {
         uint256 currentRate = _getRate();
         uint256 rOtherFee = tOtherFee.mul(currentRate);
         _rOwned[proxycontract] = _rOwned[proxycontract].add(
             rOtherFee
         );
-        if (_isExcluded[proxycontract])
+        if (_isExcluded[proxycontract]){
             _tOwned[proxycontract] = _tOwned[proxycontract]
-                .add(tOtherFee);
+                .add(tOtherFee);}
+        emit Transfer(sender, proxycontract, tOtherFee);
     }
 
     /**
@@ -658,13 +657,6 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
             _tokenTransfer(from, to, amount, false);
         }
         else {
-            //If user has no limit role there is no maximum transfer amount. TODO: change role! Add anti whale function
-            // if (!hasRole(NOLIMIT_ROLE, from)) {
-            //     require(
-            //         amount <= _maxTxAmount,
-            //         "Transfer amount exceeds the maxTxAmount."
-            //     );
-            // }
 
             //antiwhale function upgradable in the future
             if(antiwhale){
@@ -755,7 +747,7 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         ) = _getValues(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
-        _takeOtherFee(tOtherFee);
+        _takeOtherFee(tOtherFee, sender);
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
@@ -782,7 +774,7 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _tOwned[recipient] = _tOwned[recipient].add(tTransferAmount);
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
-        _takeOtherFee(tOtherFee);
+        _takeOtherFee(tOtherFee, sender);
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
@@ -809,7 +801,7 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         _tOwned[sender] = _tOwned[sender].sub(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
-        _takeOtherFee(tOtherFee);
+        _takeOtherFee(tOtherFee, sender);
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
@@ -837,7 +829,7 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _tOwned[recipient] = _tOwned[recipient].add(tTransferAmount);
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
-        _takeOtherFee(tOtherFee);
+        _takeOtherFee(tOtherFee, sender);
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
     }
