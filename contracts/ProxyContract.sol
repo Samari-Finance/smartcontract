@@ -25,10 +25,10 @@ contract ProxyFunctions is Context, AccessControl, IproxyContract {
     uint256 private _minimumsellamount;
     uint256 public  minsellpromille = 1;
 
-    uint256 public _liquidityFee = 50;
-    uint256 public _donationFee = 20;
-    uint256 public _marketingFee = 20;
-    uint256 public _otherFee = 10;
+    uint256 public _liquidityFee = 5;
+    uint256 public _donationFee = 2;
+    uint256 public _marketingFee = 1;
+    uint256 public _otherFee = 0;
     uint256 public _feeTotal = _liquidityFee + _donationFee + _marketingFee + _otherFee;
 
     uint256 public assesedbalance = 0;

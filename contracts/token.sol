@@ -45,17 +45,15 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
     bool public proxyenabled = false;
 
     //Define initial contract settings
-    string private _name = "ASDFTEST";
-    string private _symbol = "ASDFFFTEST";
+    string private _name = "Samari";
+    string private _symbol = "SAMA";
     uint8 private _decimals = 9;
 
-    uint256 public _taxFee = 5;
+    uint256 public _taxFee = 3;
     uint256 private _previousTaxFee = _taxFee;
 
-    uint256 public _otherFee = 5;
+    uint256 public _otherFee = 7;
     uint256 private _previousOtherFee = _otherFee;
-
-    uint256 public _maxTxAmount = 12407274488 * 10**9;
 
     address public proxycontract;
 
@@ -395,14 +393,6 @@ contract Samari is Context, IERC20, Pausable, AccessControl {
      */
     function setOtherFeeFeePercent(uint256 otherFee) public onlyRole(TOCENOMICS_ROLE) {
         _otherFee = otherFee;
-    }
-
-    /**
-     * @dev Set the maximum amount of tokens to be transfered from normal accounts
-     *
-     */
-    function setMaxTxPercent(uint256 maxTxPercent) public onlyRole(TOCENOMICS_ROLE) {
-        _maxTxAmount = _tTotal.mul(maxTxPercent).div(10**2);
     }
 
     /**
