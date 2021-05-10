@@ -23,7 +23,7 @@ contract ProxyFunctions is Context, IproxyContract, AccessControlEnumerable {
     //Modifiable values
     //Tocenomics
     uint256 private _minimumsellamount;
-    uint256 public  minsellpromille = 1;
+    uint256 public  minsellpermille = 1;
 
     uint256 public _liquidityFee = 5;
     uint256 public _donationFee = 2;
@@ -38,7 +38,7 @@ contract ProxyFunctions is Context, IproxyContract, AccessControlEnumerable {
     //Antiwhale
     uint256 private _timelimit = 3 hours;
     uint256 private _maxsellamount;
-    uint256 public  maxsellpromille = 200;
+    uint256 public  maxsellpermille = 200;
 
 
     address private immutable _uniswaprouter; 
@@ -69,8 +69,8 @@ contract ProxyFunctions is Context, IproxyContract, AccessControlEnumerable {
                 tokenaddress,
                 _uniswapV2Router.WETH()
             );
-        _maxsellamount = (IERC20(tokenaddress).totalSupply() * maxsellpromille) / 1000;
-        _minimumsellamount = (IERC20(tokenaddress).totalSupply() * minsellpromille) / 1000;
+        _maxsellamount = (IERC20(tokenaddress).totalSupply() * maxsellpermille) / 1000;
+        _minimumsellamount = (IERC20(tokenaddress).totalSupply() * minsellpermille) / 1000;
         // set the rest of the contract variables
         uniswapV2Router = _uniswapV2Router;
         _uniswapV2Pair = IUniswapV2Pair(tmpuniswapV2Pair);
@@ -172,10 +172,10 @@ contract ProxyFunctions is Context, IproxyContract, AccessControlEnumerable {
         );
     }
 
-    function modifyAntiWhale(uint256 time_min, uint256 maxpromille) public onlyRole(WHALE_ROLE){
+    function modifyAntiWhale(uint256 time_min, uint256 maxpermille) public onlyRole(WHALE_ROLE){
         _timelimit = time_min * 1 minutes;
-        _maxsellamount = (_token.totalSupply() * maxpromille) / 1000;
-        maxsellpromille = maxpromille;
+        _maxsellamount = (_token.totalSupply() * maxpermille) / 1000;
+        maxsellpermille = maxpermille;
     }
     /*  Calculate price impact to make just one swap in the future   
     function priceimpactcalculator(uint256 amount) public {
