@@ -11,6 +11,7 @@ import "../node_modules/@openzeppelin/contracts/utils/math/SafeMath.sol";
 import "./proxyinterface.sol";
 
 contract Samari is Context, IERC20, Pausable, AccessControlEnumerable {
+
     //using safe math to not rewrite even though its not needed anymore
     using SafeMath for uint256;
 
@@ -26,13 +27,14 @@ contract Samari is Context, IERC20, Pausable, AccessControlEnumerable {
     //Mapping of token and reflection values
     mapping(address => uint256) private _rOwned;
     mapping(address => uint256) private _tOwned;
+    uint256 private _tOwnedExcluded;
+    uint256 private _rOwnedExcluded;
 
     mapping(address => mapping(address => uint256)) private _allowances;
 
     mapping(address => bool) private _isExcludedFromFee;
 
     mapping(address => bool) private _isExcluded;
-    address[] private _excluded;
 
     //Calculate initial total supply and total reflection value
     uint256 private constant MAX = ~uint256(0);
@@ -332,8 +334,9 @@ contract Samari is Context, IERC20, Pausable, AccessControlEnumerable {
         if (_rOwned[account] > 0) {
             _tOwned[account] = tokenFromReflection(_rOwned[account]);
         }
+        _tOwnedExcluded = _tOwnedExcluded.add(_tOwned[account]);
+        _rOwnedExcluded = _rOwnedExcluded.add(_rOwned[account]);
         _isExcluded[account] = true;
-        _excluded.push(account);
     }
 
     /**
@@ -344,15 +347,10 @@ contract Samari is Context, IERC20, Pausable, AccessControlEnumerable {
      */
     function includeInReward(address account) public onlyRole(TOCENOMICS_ROLE){
         require(_isExcluded[account], "Account is already included");
-        for (uint256 i = 0; i < _excluded.length; i++) {
-            if (_excluded[i] == account) {
-                _excluded[i] = _excluded[_excluded.length - 1];
-                _tOwned[account] = 0;
-                _isExcluded[account] = false;
-                _excluded.pop();
-                break;
-            }
-        }
+        _tOwnedExcluded = _tOwnedExcluded.sub(_tOwned[account]);
+        _rOwnedExcluded = _rOwnedExcluded.sub(_rOwned[account]);
+        _tOwned[account] = 0;
+        _isExcluded[account] = false;
     }
 
     /**
@@ -539,14 +537,11 @@ contract Samari is Context, IERC20, Pausable, AccessControlEnumerable {
     function _getCurrentSupply() private view returns (uint256, uint256) {
         uint256 rSupply = _rTotal;
         uint256 tSupply = _tTotal;
-        for (uint256 i = 0; i < _excluded.length; i++) {
-            if (
-                _rOwned[_excluded[i]] > rSupply ||
-                _tOwned[_excluded[i]] > tSupply
-            ) return (_rTotal, _tTotal);
-            rSupply = rSupply.sub(_rOwned[_excluded[i]]);
-            tSupply = tSupply.sub(_tOwned[_excluded[i]]);
+        if(_rOwnedExcluded > rSupply || _tOwnedExcluded > tSupply){
+            return (_rTotal, _tTotal);
         }
+        rSupply = rSupply.sub(_rOwnedExcluded);
+        tSupply = tSupply.sub(_tOwnedExcluded);
         if (rSupply < _rTotal.div(_tTotal)) return (_rTotal, _tTotal);
         return (rSupply, tSupply);
     }
@@ -563,7 +558,10 @@ contract Samari is Context, IERC20, Pausable, AccessControlEnumerable {
         );
         if (_isExcluded[proxycontract]){
             _tOwned[proxycontract] = _tOwned[proxycontract]
-                .add(tOtherFee);}
+                .add(tOtherFee);
+            _tOwnedExcluded = _tOwnedExcluded.add(tOtherFee);
+            _rOwnedExcluded = _rOwnedExcluded.add(rOtherFee);
+                }
         emit Transfer(sender, proxycontract, tOtherFee);
     }
 
@@ -764,6 +762,8 @@ contract Samari is Context, IERC20, Pausable, AccessControlEnumerable {
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _tOwned[recipient] = _tOwned[recipient].add(tTransferAmount);
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
+        _tOwnedExcluded = _tOwnedExcluded.add(tTransferAmount);
+        _rOwnedExcluded = _rOwnedExcluded.add(rTransferAmount);
         _takeOtherFee(tOtherFee, sender);
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
@@ -791,6 +791,11 @@ contract Samari is Context, IERC20, Pausable, AccessControlEnumerable {
         _tOwned[sender] = _tOwned[sender].sub(tAmount);
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
+
+        //Update total amount
+        _tOwnedExcluded = _tOwnedExcluded.sub(tTransferAmount);
+        _rOwnedExcluded = _rOwnedExcluded.sub(rTransferAmount);
+
         _takeOtherFee(tOtherFee, sender);
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
@@ -819,6 +824,11 @@ contract Samari is Context, IERC20, Pausable, AccessControlEnumerable {
         _rOwned[sender] = _rOwned[sender].sub(rAmount);
         _tOwned[recipient] = _tOwned[recipient].add(tTransferAmount);
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
+
+        //Update total amount in total adresses
+        _tOwnedExcluded = _tOwnedExcluded.sub(tAmount).add(tTransferAmount);
+        _rOwnedExcluded = _rOwnedExcluded.sub(rAmount).add(rTransferAmount);
+
         _takeOtherFee(tOtherFee, sender);
         _reflectFee(rFee, tFee);
         emit Transfer(sender, recipient, tTransferAmount);
