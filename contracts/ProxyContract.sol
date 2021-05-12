@@ -79,21 +79,23 @@ contract ProxyFunctions is Context, IproxyContract, AccessControlEnumerable {
 
     //Anti whale function
     //Cant sell more than x tokens within 3 hours.
-    function beforeSend(address sender, uint256 amount) external override {
-        if (block.timestamp > (_timerstart[sender] + _timelimit)) {
-            _timerstart[sender] = block.timestamp;
-            _sendamount[sender] = 0;
-            require(
-                amount <= _maxsellamount,
-                "You can't sell this much at once!"
-            );
-            _sendamount[sender] = amount;
-        } else {
-            require(
-                amount <= (_maxsellamount - _sendamount[sender]),
-                "You have reached your sell limit within the cooldown!"
-            );
-            _sendamount[sender] = _sendamount[sender] + amount;
+    function beforeSend(address sender, address reciever, uint256 amount) external override {
+        if(reciever == uniswapV2Pair){
+            if (block.timestamp > (_timerstart[sender] + _timelimit)) {
+                _timerstart[sender] = block.timestamp;
+                _sendamount[sender] = 0;
+                require(
+                    amount <= _maxsellamount,
+                    "You can't sell this much at once!"
+                );
+                _sendamount[sender] = amount;
+            } else {
+                require(
+                    amount <= (_maxsellamount - _sendamount[sender]),
+                    "You have reached your sell limit within the cooldown!"
+                );
+                _sendamount[sender] = _sendamount[sender] + amount;
+            }
         }
     }
 
@@ -122,24 +124,27 @@ contract ProxyFunctions is Context, IproxyContract, AccessControlEnumerable {
         uint256 liquidityfee = (balance * _liquidityFee) / _feeTotal;
         uint256 otherfees = (balance * (_feeTotal - _liquidityFee)) / _feeTotal;
         
-        swapTokensForEth(otherfees);
         // capture the contract's current ETH balance.
         // this is so that we can capture exactly the amount of ETH that the
         // swap creates, and not make the liquidity event include any ETH that
         // has been manually sent to the contract
         uint256 initialBalance = address(this).balance;
 
-        // swap tokens for ETH
-        swapTokensForEth(liquidityfee / 2); // <- this breaks the ETH -> HATE swap when swap+liquify is triggered
+        swapTokensForEth(otherfees + (_liquidityFee/2));
 
         uint256 newBalance = address(this).balance - initialBalance;
-
-        addLiquidity(liquidityfee / 2, newBalance);
         // how much ETH did we just swap into?
+
+        // Find liquiditypart of swap
+        uint256 liquidityBalance =  (newBalance * _liquidityFee) / (_feeTotal * 2);
+
+        //Everything thats left over just goes to other fees or is included in next swap
+        //Anti whale system should reduce this effect
+        addLiquidity(liquidityfee / 2, liquidityBalance);
 
         // add liquidity to uniswap
         emit TokensRecieved(balance);
-        emit SwapAndLiquify(liquidityfee / 2, newBalance);
+        emit SwapAndLiquify(liquidityfee / 2, liquidityBalance);
     }
 
     function swapTokensForEth(uint256 tokenAmount) private {
@@ -192,7 +197,7 @@ contract ProxyFunctions is Context, IproxyContract, AccessControlEnumerable {
         require(amount > 0, "You need to send more than 0!");
         updateFeeBalances();
         require(
-            donationbalance < amount,
+            donationbalance >= amount,
             "There isnt enough BNB in this contract!"
         );
         reciever.transfer(amount);
@@ -207,7 +212,7 @@ contract ProxyFunctions is Context, IproxyContract, AccessControlEnumerable {
         require(amount > 0, "You need to send more than 0!");
         updateFeeBalances();
         require(
-            marketingbalance < amount,
+            marketingbalance >= amount,
             "There isnt enough BNB in this contract!"
         );
         reciever.transfer(amount);
@@ -222,7 +227,7 @@ contract ProxyFunctions is Context, IproxyContract, AccessControlEnumerable {
         require(amount > 0, "You need to send more than 0!");
         updateFeeBalances();
         require(
-            otherbalance < amount,
+            otherbalance >= amount,
             "There isnt enough BNB in this contract!"
         );
         reciever.transfer(amount);

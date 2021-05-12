@@ -650,8 +650,8 @@ contract Samari is Context, IERC20, Pausable, AccessControlEnumerable {
 
             //antiwhale function upgradable in the future
             if(antiwhale){
-                if(hasRole(POOL_ROLE, to) && !hasRole(NOLIMIT_ROLE, from)){
-                    IproxyContract(proxycontract).beforeSend(from, amount);
+                if((hasRole(POOL_ROLE, to) && !hasRole(NOLIMIT_ROLE, from)) || (hasRole(POOL_ROLE, from) && !hasRole(NOLIMIT_ROLE, to)) ){
+                    IproxyContract(proxycontract).beforeSend(from, to, amount);
                 }
             }
 
