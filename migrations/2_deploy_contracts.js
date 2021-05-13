@@ -1,6 +1,6 @@
-var Samari = artifacts.require("Samari");
+const Samari = artifacts.require("Samari");
 var ProxyFunctions = artifacts.require("ProxyFunctions");
-var MultiSend = artifacts.require("MultiSend");
+const MultiSend = artifacts.require("MultiSend");
 
 module.exports = async function(deployer) {
     await Promise.all([
