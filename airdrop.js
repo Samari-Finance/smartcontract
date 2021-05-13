@@ -1,12 +1,11 @@
 const { ethers } = require("ethers");
 const creds = require('./sheet_secret.json'); 
-const Samari = artifacts.require("Samari");
-const MultiSend = artifacts.require("MultiSend");
 
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 // Initialize the sheet - doc ID is the long id in the sheets URL
 
 module.exports = async function(callback) {
+    console.log(Samari.deployed_address);
     const doc = new GoogleSpreadsheet('1mw8T4AEIIzvZ2xPbPGsgOEcHsWlvZhAX9nEpHKNbGV4');
     await doc.useServiceAccountAuth(creds);
     await doc.loadInfo(); // loads document properties and worksheets
@@ -26,8 +25,8 @@ module.exports = async function(callback) {
     }
     console.log("All airdrop data loaded!");
 
-    const SamariIns = Samari.deployed();
-    const MultiSendIns = MultiSend.deployed();
+    const SamariIns = await Samari.deployed();
+    const MultiSendIns = await MultiSend.deployed();
 
     console.log("Found Samari contract at :" + SamariIns.Address + " and multisend at :" + MultiSendIns.Address);
 
