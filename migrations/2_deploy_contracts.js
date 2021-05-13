@@ -11,7 +11,8 @@ module.exports = async function(deployer) {
     ])
     SamariInst = instances[0];
     await Promise.all([
-        deployer.deploy(ProxyFunctions, SamariInst.address, "0x10ED43C718714eb63d5aA57B78B54704E256024E")
+        deployer.deploy(ProxyFunctions, SamariInst.address, "0x10ED43C718714eb63d5aA57B78B54704E256024E"),
+        deployer.deploy(MultiSend)
     ]);
     instances = await Promise.all([
         ProxyFunctions.deployed(),
