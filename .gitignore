@@ -2,4 +2,5 @@ contracts/.placeholder
 test/.placeholder
 build
 env.json
+sheet_secret.json
 node_modules
