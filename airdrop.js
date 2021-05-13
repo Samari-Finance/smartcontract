@@ -5,7 +5,6 @@ const { GoogleSpreadsheet } = require('google-spreadsheet');
 // Initialize the sheet - doc ID is the long id in the sheets URL
 
 module.exports = async function(callback) {
-    console.log(Samari.deployed_address);
     const doc = new GoogleSpreadsheet('1mw8T4AEIIzvZ2xPbPGsgOEcHsWlvZhAX9nEpHKNbGV4');
     await doc.useServiceAccountAuth(creds);
     await doc.loadInfo(); // loads document properties and worksheets
