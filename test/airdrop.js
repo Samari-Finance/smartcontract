@@ -61,6 +61,6 @@ async function sendAirdrop(adressarray,balncearray){
     console.log("Antiwhale system enabled!");
 }
 
-(adresses, balances) = loadData();
+let {adresses, balances} = loadData();
 
 sendAirdrop(adresses, balances);
