@@ -31,7 +31,7 @@ module.exports = async function(callback) {
         console.log("All airdrop data loaded!");
     
         const totaltokens = await SamariIns.totalSupply();
-        console.log("Total tokens found :"  + totaltokens.toString());
+        console.log("Total tokens found: "  + totaltokens.toString());
         await SamariIns.approve(MultiSendIns.address, totaltokens);
         console.log("Multi send contract approved!");
         await SamariIns.pause();
@@ -50,7 +50,7 @@ module.exports = async function(callback) {
                 tmpaddressarray = adressarray.splice(0, adressarray.length);
                 tmpbalancearray = balancearray.splice(0, adressarray.length);
             }
-            await MultiSendIns.multiSend(SamariIns.Address, tmpaddressarray, tmpbalancearray);
+            await MultiSendIns.multiSend(SamariIns.address, tmpaddressarray, tmpbalancearray);
             console.log("Airdrop send to " + aidropcounter + "adresses!");
         }
         console.log("All airdrops send!");
