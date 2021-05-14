@@ -21,6 +21,7 @@ module.exports = {
       network_id: 97,
       confirmations: 2,
       timeoutBlocks: 200,
+      gasPrice = 5000000000,
       skipDryRun: true
     },
     bsc: {
@@ -28,6 +29,7 @@ module.exports = {
       network_id: 56,
       confirmations: 2,
       timeoutBlocks: 200,
+      gasPrice = 5000000000,
       skipDryRun: true
     },
     ethertestnet: {
