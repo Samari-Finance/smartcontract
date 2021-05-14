@@ -49,11 +49,11 @@ module.exports = {
   // Configure your compilers
   compilers: {
     solc: {
-      version: "^0.8.0", // A version or constraint - Ex. "^0.5.0"
+      version: "^0.8.4", // A version or constraint - Ex. "^0.5.0"
       settings: {
         optimizer: {
           enabled: true,
-          runs: 500
+          runs: 200
         }
       }
     }
