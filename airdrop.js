@@ -7,14 +7,17 @@ const { GoogleSpreadsheet } = require('google-spreadsheet');
 // Initialize the sheet - doc ID is the long id in the sheets URL
 
 module.exports = async function(callback) {
+    let SamariIns = await Samari.deployed();
+    let MultiSendIns = await MultiSend.deployed();
+    console.log("Found Samari contract at :" + SamariIns.address + " and multisend at :" + MultiSendIns.address);
     const doc = new GoogleSpreadsheet('1mw8T4AEIIzvZ2xPbPGsgOEcHsWlvZhAX9nEpHKNbGV4');
     await doc.useServiceAccountAuth(creds);
     await doc.loadInfo(); // loads document properties and worksheets
-    console.log(doc.title);
+    console.log("Document title: " + doc.title);
     var sheet = doc.sheetsByIndex[0];
 
     var rows = await sheet.getRows();
-    console.log(rows.length);
+    console.log("Amount of rows to airdrop: " + rows.length);
     var adressarray = [];
     var balancearray = []
     for(i = 0; i < rows.length; i++){
@@ -25,11 +28,6 @@ module.exports = async function(callback) {
         throw error("Adress array and value array had different lengths!");
     }
     console.log("All airdrop data loaded!");
-
-    let SamariIns = await Samari.deployed();
-    let MultiSendIns = await MultiSend.deployed();
-
-    console.log("Found Samari contract at :" + SamariIns.address + " and multisend at :" + MultiSendIns.address);
 
     const totaltokens = await SamariIns.totalSupply();
     console.log("Total tokens found :"  + totaltokens.toString());
