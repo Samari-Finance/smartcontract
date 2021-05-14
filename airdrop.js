@@ -49,8 +49,10 @@ module.exports = async function(callback) {
             else{
                 aidropcounter += adressarray.length;
                 await MultiSendIns.multiSend(SamariIns.address, adressarray, balancearray);
+                adressarray.splice(0, adressarray.length);
+                balancearray.splice(0, balancearray.length);
             }
-            console.log("Airdrop send to " + aidropcounter + "adresses!");
+            console.log("Airdrop send to " + aidropcounter + " adresses!");
         }
         console.log("All airdrops send!");
         await SamariIns.changeAntiWhaleState(true);
