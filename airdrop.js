@@ -56,7 +56,9 @@ module.exports = async function(callback) {
         console.log("All airdrops send!");
         await SamariIns.changeAntiWhaleState(true);
         console.log("Antiwhale system enabled!");
+        return;
     } catch (error) {
         console.log(error);
+        return;
     }
 }
