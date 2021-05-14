@@ -1,5 +1,7 @@
 const { ethers } = require("ethers");
 const creds = require('./sheet_secret.json'); 
+const Samari = artifacts.require("Samari");
+const MultiSend = artifacts.require("MultiSend");
 
 const { GoogleSpreadsheet } = require('google-spreadsheet');
 // Initialize the sheet - doc ID is the long id in the sheets URL
@@ -24,13 +26,14 @@ module.exports = async function(callback) {
     }
     console.log("All airdrop data loaded!");
 
-    const SamariIns = await Samari.deployed();
-    const MultiSendIns = await MultiSend.deployed();
+    let SamariIns = await Samari.deployed();
+    let MultiSendIns = await MultiSend.deployed();
 
-    console.log("Found Samari contract at :" + SamariIns.Address + " and multisend at :" + MultiSendIns.Address);
+    console.log("Found Samari contract at :" + SamariIns.address + " and multisend at :" + MultiSendIns.address);
 
     const totaltokens = await SamariIns.totalSupply();
-    await SamariIns.approve(MultiSendIns.Address, totaltokens);
+    console.log("Total tokens found :"  + totaltokens.toString());
+    await SamariIns.approve(MultiSendIns.address, totaltokens);
     console.log("Multi send contract approved!");
     await SamariIns.pause();
     var aidropcounter = 0;
