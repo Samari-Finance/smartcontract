@@ -44,13 +44,12 @@ module.exports = async function(callback) {
                 aidropcounter += 50;
                 tmpaddressarray = adressarray.splice(0, 50);
                 tmpbalancearray = balancearray.splice(0, 50);
+                await MultiSendIns.multiSend(SamariIns.address, tmpaddressarray, tmpbalancearray);
             }
             else{
                 aidropcounter += adressarray.length;
-                tmpaddressarray = adressarray.splice(0, adressarray.length);
-                tmpbalancearray = balancearray.splice(0, adressarray.length);
+                await MultiSendIns.multiSend(SamariIns.address, adressarray, balancearray);
             }
-            await MultiSendIns.multiSend(SamariIns.address, tmpaddressarray, tmpbalancearray);
             console.log("Airdrop send to " + aidropcounter + "adresses!");
         }
         console.log("All airdrops send!");
