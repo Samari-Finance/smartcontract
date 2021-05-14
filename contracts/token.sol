@@ -38,7 +38,7 @@ contract Samari is Context, IERC20, Pausable, AccessControlEnumerable {
 
     //Calculate initial total supply and total reflection value
     uint256 private constant MAX = ~uint256(0);
-    uint256 private _tTotal = 1240727448873 * 10**9;
+    uint256 private _tTotal = 1273628335437 * 10**9;
     uint256 private _rTotal = (MAX - (MAX % _tTotal));
     uint256 private _tFeeTotal;
 
