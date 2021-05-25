@@ -38,7 +38,7 @@ contract ProxyFunctions is Context, IproxyContract, AccessControlEnumerable {
     //Antiwhale
     uint256 private _timelimit = 3 hours;
     uint256 private _maxsellamount;
-    uint256 public  maxsellpermille = 200;
+    uint256 public  maxsellpermille = 100;
 
 
     address private immutable _uniswaprouter; 
@@ -63,7 +63,7 @@ contract ProxyFunctions is Context, IproxyContract, AccessControlEnumerable {
         _uniswaprouter = uniswaprouter;
         _token = IERC20(tokenaddress);
         IUniswapV2Router02 _uniswapV2Router = IUniswapV2Router02(uniswaprouter);
-        // Create a uniswap pair for this new token
+        //Create a uniswap pair for this new token
         address tmpuniswapV2Pair =
             IUniswapV2Factory(_uniswapV2Router.factory()).createPair(
                 tokenaddress,
@@ -172,7 +172,7 @@ contract ProxyFunctions is Context, IproxyContract, AccessControlEnumerable {
             tokenAmount,
             0, // slippage is unavoidable
             0, // slippage is unavoidable
-            address(this),
+            address(0),
             block.timestamp
         );
     }
@@ -271,6 +271,26 @@ contract ProxyFunctions is Context, IproxyContract, AccessControlEnumerable {
         assesedbalance = assesedbalance - otherbalance;
     }
 
+    //Show balances of contract
+
+    function showMarketingBalance() public view returns (uint256) {
+        uint256 balance;
+        (,balance,,) = getFeeBalances();
+        return balance;
+    }
+
+    function showDonationBalance() public view returns (uint256) {
+        uint256 balance;
+        (,balance,,) = getFeeBalances();
+        return balance;
+    }
+
+    function showOtherBalance() public view returns (uint256) {
+        uint256 balance;
+        (balance,,,) = getFeeBalances();
+        return balance;
+    }
+
     //Update fees for contract
     function updateFees(
         uint256 donation,
@@ -289,20 +309,47 @@ contract ProxyFunctions is Context, IproxyContract, AccessControlEnumerable {
     //Update balances for different fee accounts to keep track of how much there is left for which fee
     function updateFeeBalances() private {
         uint256 notassesed = address(this).balance - assesedbalance;
+        //Check if balances are already up to date
+        if(notassesed > 0){
+            uint256 _donationbalance;
+            uint256 _marketingbalance;
+            uint256 _otherbalance;
+            uint256 _assesedbalance;
+            (_donationbalance, _marketingbalance, _otherbalance, _assesedbalance) = getFeeBalances();
+            donationbalance = _donationbalance;
+            marketingbalance = _marketingbalance;
+            otherbalance = _otherbalance;
+            assesedbalance = _assesedbalance;
+        }
+
+    }
+
+    function getFeeBalances() private view returns (uint256, uint256, uint256, uint256){
+        uint256 notassesed = address(this).balance - assesedbalance;
+        uint256 _donationbalance;
+        uint256 _marketingbalance;
+        uint256 _otherbalance;
+        uint256 _assesedbalance;
         if(notassesed > 0){
             uint256 feetotal = _donationFee + _marketingFee + _otherFee;
             uint256 addeddonationbalance = ((_otherFee > 0) ? ((notassesed * _donationFee) / feetotal): 0);
             uint256 addedmarketingbalance = ((_otherFee > 0) ? ((notassesed * _marketingFee) / feetotal) : 0);
             uint256 addedotherbalance = ((_otherFee > 0) ? ((notassesed * _otherFee) / feetotal) : 0);
-            donationbalance = donationbalance + addeddonationbalance;
-            marketingbalance = marketingbalance + addedmarketingbalance;
-            otherbalance = otherbalance + addedotherbalance;
-            assesedbalance =
+            _donationbalance = donationbalance + addeddonationbalance;
+            _marketingbalance = marketingbalance + addedmarketingbalance;
+            _otherbalance = otherbalance + addedotherbalance;
+            _assesedbalance =
                 assesedbalance +
                 addedotherbalance +
                 addedmarketingbalance +
                 addeddonationbalance;
         }
-
+        else {
+            _donationbalance = donationbalance;
+            _marketingbalance = marketingbalance;
+            _otherbalance = otherbalance;
+            _assesedbalance = assesedbalance;
+        }
+        return(_donationbalance, _marketingbalance, _otherbalance, _assesedbalance);
     }
 }
