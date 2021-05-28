@@ -252,7 +252,7 @@ contract Samari is Context, IERC20, Pausable, AccessControlEnumerable {
         public onlyRole(DEFAULT_ADMIN_ROLE)
     {
         //If interface doesn't fit this function fails
-        address uniswappair = IproxyContract(contractaddress).getPair();
+        address uniswappair = IProxyContract(contractaddress).getPair();
         //Garant pool role for swapping functions
         grantRole(POOL_ROLE, uniswappair);
         grantRole(NOLIMIT_ROLE, uniswappair);
@@ -649,7 +649,7 @@ contract Samari is Context, IERC20, Pausable, AccessControlEnumerable {
             //antiwhale function upgradable in the future
             if(antiwhale){
                 if((hasRole(POOL_ROLE, to) && !hasRole(NOLIMIT_ROLE, from)) || (hasRole(POOL_ROLE, from) && !hasRole(NOLIMIT_ROLE, to)) ){
-                    IproxyContract(proxycontract).beforeSend(from, to, amount);
+                    IProxyContract(proxycontract).beforeSend(from, to, amount);
                 }
             }
 
@@ -676,7 +676,7 @@ contract Samari is Context, IERC20, Pausable, AccessControlEnumerable {
     function swapAndLiquify() private lockTheSwap {
         // split the contract balance into halves
         uint256 newproxybalance = balanceOf(proxycontract);
-        IproxyContract(proxycontract).tokensSend(newproxybalance);
+        IProxyContract(proxycontract).tokensSend(newproxybalance);
 
     }
 
