@@ -25,25 +25,25 @@ contract ProxyFunctionsV2 is Context, IproxyContract, AccessControlEnumerable {
     //Modifiable values
     //Tocenomics
     uint256 private _minimumsellamount;
-    uint256 public  minsellpermille = 1;
+    uint256 public minsellpermille = 1;
 
     uint256 public _liquidityFee = 5;
     uint256 public _donationFee = 2;
     uint256 public _marketingFee = 1;
     uint256 public _otherFee = 0;
-    uint256 public _feeTotal = _liquidityFee + _donationFee + _marketingFee + _otherFee;
+    uint256 public _feeTotal =
+        _liquidityFee + _donationFee + _marketingFee + _otherFee;
 
     uint256 public assesedbalance = 0;
-    uint256 public donationbalance = 0;
-    uint256 public marketingbalance = 0;
-    uint256 public otherbalance = 0;
+    uint256 public asseseddonationbalance = 0;
+    uint256 public assesedmarketingbalance = 0;
+    uint256 public assesedotherbalance = 0;
     //Antiwhale
     uint256 private _timelimit = 1 hours;
     uint256 private _maxsellamount;
-    uint256 public  maxsellpermille = 10;
+    uint256 public maxsellpermille = 10;
 
-
-    address private immutable _uniswaprouter; 
+    address private immutable _uniswaprouter;
 
     IERC20 private immutable _token;
 
@@ -55,7 +55,11 @@ contract ProxyFunctionsV2 is Context, IproxyContract, AccessControlEnumerable {
     event SwapAndLiquify(uint256, uint256);
 
     //Needs to be changed
-    constructor(address tokenaddress, address uniswaprouter, address uniswappair) {
+    constructor(
+        address tokenaddress,
+        address uniswaprouter,
+        address uniswappair
+    ) {
         _setupRole(DEFAULT_ADMIN_ROLE, _msgSender());
         _setupRole(DONTATIONWITHDRAW_ROLE, _msgSender());
         _setupRole(MARKETINGWITHDRAW_ROLE, _msgSender());
@@ -72,8 +76,12 @@ contract ProxyFunctionsV2 is Context, IproxyContract, AccessControlEnumerable {
         //         tokenaddress,
         //         _uniswapV2Router.WETH()
         //     );
-        _maxsellamount = (IERC20(tokenaddress).totalSupply() * maxsellpermille) / 1000;
-        _minimumsellamount = (IERC20(tokenaddress).totalSupply() * minsellpermille) / 1000;
+        _maxsellamount =
+            (IERC20(tokenaddress).totalSupply() * maxsellpermille) /
+            1000;
+        _minimumsellamount =
+            (IERC20(tokenaddress).totalSupply() * minsellpermille) /
+            1000;
         // set the rest of the contract variables
         uniswapV2Router = _uniswapV2Router;
         _uniswapV2Pair = IUniswapV2Pair(uniswappair);
@@ -82,28 +90,30 @@ contract ProxyFunctionsV2 is Context, IproxyContract, AccessControlEnumerable {
 
     //Anti whale function
     //Cant sell more than x tokens within 3 hours.
-    function beforeSend(address sender, address reciever, uint256 amount) external override {
-        if(reciever == uniswapV2Pair){
-            if (block.timestamp > (_timerstart[sender] + _timelimit)) {
+    function beforeSend(
+        address sender,
+        address reciever,
+        uint256 amount
+    ) external override {
+        require(
+            hasRole(TOKEN_ROLE, msg.sender),
+            "You are not allowed to call this function!"
+        );
+        if (reciever == uniswapV2Pair) {
+            if (block.timestamp >= (_timerstart[sender] + _timelimit)) {
                 _timerstart[sender] = block.timestamp;
                 _sendamount[sender] = 0;
-                require(
-                    amount <= _maxsellamount,
-                    "You can't sell this much at once!"
-                );
-                _sendamount[sender] = amount;
-            } else {
-                require(
-                    amount <= (_maxsellamount - _sendamount[sender]),
-                    "You have reached your sell limit within the cooldown!"
-                );
-                _sendamount[sender] = _sendamount[sender] + amount;
             }
+            require(
+                amount <= (_maxsellamount - _sendamount[sender]),
+                "You have reached your sell limit!"
+            );
+            _sendamount[sender] = _sendamount[sender] + amount;
         }
     }
 
     //Get pair function since interface cant cointain a varaible
-    function getPair() external view override returns (address){
+    function getPair() external view override returns (address) {
         return uniswapV2Pair;
     }
 
@@ -124,27 +134,28 @@ contract ProxyFunctionsV2 is Context, IproxyContract, AccessControlEnumerable {
             return;
         }
 
-        if (balance > _maxsellamount){
+        if (balance > _maxsellamount) {
             balance = _maxsellamount;
         }
         _token.approve(_uniswaprouter, balance);
         // split the LiquidityFee balance into halves
         uint256 liquidityfee = (balance * _liquidityFee) / _feeTotal;
         uint256 otherfees = (balance * (_feeTotal - _liquidityFee)) / _feeTotal;
-        
+
         // capture the contract's current ETH balance.
         // this is so that we can capture exactly the amount of ETH that the
         // swap creates, and not make the liquidity event include any ETH that
         // has been manually sent to the contract
         uint256 initialBalance = address(this).balance;
 
-        swapTokensForEth(otherfees + (_liquidityFee/2));
+        swapTokensForEth(otherfees + (_liquidityFee / 2));
 
         uint256 newBalance = address(this).balance - initialBalance;
         // how much ETH did we just swap into?
 
         // Find liquiditypart of swap
-        uint256 liquidityBalance =  (newBalance * _liquidityFee) / (_feeTotal * 2);
+        uint256 liquidityBalance =
+            (newBalance * _liquidityFee) / (_feeTotal * 2);
 
         //Everything thats left over just goes to other fees or is included in next swap
         //Anti whale system should reduce this effect
@@ -186,19 +197,25 @@ contract ProxyFunctionsV2 is Context, IproxyContract, AccessControlEnumerable {
     }
 
     //Withdraw liquidity in case of emergency
-    function withdrawLiquidity(address reciever) public onlyRole(DEFAULT_ADMIN_ROLE) {
+    function withdrawLiquidity(address reciever)
+        public
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         uint256 balance = _uniswapV2Pair.balanceOf(address(this));
         _uniswapV2Pair.transfer(reciever, balance);
     }
 
-    function modifyAntiWhale(uint256 time_min, uint256 maxpermille) public onlyRole(WHALE_ROLE){
+    function modifyAntiWhale(uint256 time_min, uint256 maxpermille)
+        public
+        onlyRole(WHALE_ROLE)
+    {
         _timelimit = time_min * 1 minutes;
         _maxsellamount = (_token.totalSupply() * maxpermille) / 1000;
         maxsellpermille = maxpermille;
     }
 
     //Withdraw functions
-    //First update fee balances and check if enough BNB is in wallet to withdraw. 
+    //First update fee balances and check if enough BNB is in wallet to withdraw.
     //Remove payed out amount from specefic wallet
     function withdrawDonation(address payable reciever, uint256 amount)
         public
@@ -207,11 +224,11 @@ contract ProxyFunctionsV2 is Context, IproxyContract, AccessControlEnumerable {
         require(amount > 0, "You need to send more than 0!");
         updateFeeBalances();
         require(
-            donationbalance >= amount,
+            asseseddonationbalance >= amount,
             "There isnt enough BNB in this contract!"
         );
         reciever.transfer(amount);
-        donationbalance = donationbalance - amount;
+        asseseddonationbalance = asseseddonationbalance - amount;
         assesedbalance = assesedbalance - amount;
     }
 
@@ -222,11 +239,11 @@ contract ProxyFunctionsV2 is Context, IproxyContract, AccessControlEnumerable {
         require(amount > 0, "You need to send more than 0!");
         updateFeeBalances();
         require(
-            marketingbalance >= amount,
+            assesedmarketingbalance >= amount,
             "There isnt enough BNB in this contract!"
         );
         reciever.transfer(amount);
-        marketingbalance = marketingbalance - amount;
+        assesedmarketingbalance = assesedmarketingbalance - amount;
         assesedbalance = assesedbalance - amount;
     }
 
@@ -237,11 +254,11 @@ contract ProxyFunctionsV2 is Context, IproxyContract, AccessControlEnumerable {
         require(amount > 0, "You need to send more than 0!");
         updateFeeBalances();
         require(
-            otherbalance >= amount,
+            assesedotherbalance >= amount,
             "There isnt enough BNB in this contract!"
         );
         reciever.transfer(amount);
-        otherbalance = otherbalance - amount;
+        assesedotherbalance = assesedotherbalance - amount;
         assesedbalance = assesedbalance - amount;
     }
 
@@ -250,10 +267,13 @@ contract ProxyFunctionsV2 is Context, IproxyContract, AccessControlEnumerable {
         onlyRole(DONTATIONWITHDRAW_ROLE)
     {
         updateFeeBalances();
-        require(donationbalance > 0, "There isnt enough BNB in this contract!");
-        reciever.transfer(donationbalance);
-        assesedbalance = assesedbalance - donationbalance;
-        donationbalance = 0;
+        require(
+            asseseddonationbalance > 0,
+            "There isnt enough BNB in this contract!"
+        );
+        reciever.transfer(asseseddonationbalance);
+        assesedbalance = assesedbalance - asseseddonationbalance;
+        asseseddonationbalance = 0;
     }
 
     function withdrawMarketingAll(address payable reciever)
@@ -262,12 +282,12 @@ contract ProxyFunctionsV2 is Context, IproxyContract, AccessControlEnumerable {
     {
         updateFeeBalances();
         require(
-            marketingbalance > 0,
+            assesedmarketingbalance > 0,
             "There isnt enough BNB in this contract!"
         );
-        reciever.transfer(marketingbalance);
-        assesedbalance = assesedbalance - marketingbalance;
-        marketingbalance = 0;
+        reciever.transfer(assesedmarketingbalance);
+        assesedbalance = assesedbalance - assesedmarketingbalance;
+        assesedmarketingbalance = 0;
     }
 
     function withdrawOtherAll(address payable reciever)
@@ -275,29 +295,32 @@ contract ProxyFunctionsV2 is Context, IproxyContract, AccessControlEnumerable {
         onlyRole(OTHERWITHDRAW_ROLE)
     {
         updateFeeBalances();
-        require(otherbalance > 0, "There isnt enough BNB in this contract!");
-        reciever.transfer(otherbalance);
-        assesedbalance = assesedbalance - otherbalance;
-        otherbalance = 0;
+        require(
+            assesedotherbalance > 0,
+            "There isnt enough BNB in this contract!"
+        );
+        reciever.transfer(assesedotherbalance);
+        assesedbalance = assesedbalance - assesedotherbalance;
+        assesedotherbalance = 0;
     }
 
     //Show balances of contract without writing to contract
 
     function showMarketingBalance() public view returns (uint256) {
         uint256 balance;
-        (,balance,,) = getBalances();
+        (, balance, , ) = getBalances();
         return balance;
     }
 
     function showDonationBalance() public view returns (uint256) {
         uint256 balance;
-        (balance,,,) = getBalances();
+        (balance, , , ) = getBalances();
         return balance;
     }
 
     function showOtherBalance() public view returns (uint256) {
         uint256 balance;
-        (,,balance,) = getBalances();
+        (, , balance, ) = getBalances();
         return balance;
     }
 
@@ -323,42 +346,82 @@ contract ProxyFunctionsV2 is Context, IproxyContract, AccessControlEnumerable {
         uint256 _marketingbalance;
         uint256 _otherbalance;
         uint256 _assesedbalance;
-        (_donationbalance, _marketingbalance, _otherbalance, _assesedbalance) = getBalances();
-        donationbalance = _donationbalance;
-        marketingbalance = _marketingbalance;
-        otherbalance = _otherbalance;
+        (
+            _donationbalance,
+            _marketingbalance,
+            _otherbalance,
+            _assesedbalance
+        ) = getBalances();
+        asseseddonationbalance = _donationbalance;
+        assesedmarketingbalance = _marketingbalance;
+        assesedotherbalance = _otherbalance;
         assesedbalance = _assesedbalance;
     }
 
-    function getBalances() private view returns (uint256, uint256, uint256, uint256){
+    function getBalances()
+        private
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            uint256
+        )
+    {
         uint256 notassesed = address(this).balance - assesedbalance;
         uint256 _donationbalance;
         uint256 _marketingbalance;
         uint256 _otherbalance;
         uint256 _assesedbalance;
-        //Check if balances are already up to date
-        if(notassesed > 0){
+        uint256 tmpfeetotal = _donationFee + _marketingFee + _otherFee;
+        //Check if balances are already up to date and avoid rounding error
+        if (notassesed >= tmpfeetotal) {
             //Calculate updated balances
-            uint256 tmpfeetotal = _donationFee + _marketingFee + _otherFee;
+            //to avoid rounding errors
             //Find added balances based on not assesed amount and fees
-            uint256 addeddonationbalance = ((_donationFee > 0) ? ((notassesed * _donationFee) / tmpfeetotal): 0);
-            uint256 addedmarketingbalance = ((_marketingFee > 0) ? ((notassesed * _marketingFee) / tmpfeetotal) : 0);
-            uint256 addedotherbalance = ((_otherFee > 0) ? ((notassesed * _otherFee) / tmpfeetotal) : 0);
-            _donationbalance = donationbalance + addeddonationbalance;
-            _marketingbalance = marketingbalance + addedmarketingbalance;
-            _otherbalance = otherbalance + addedotherbalance;
+            uint256 addeddonationbalance =
+                (
+                    (_donationFee > 0)
+                        ? ((notassesed * _donationFee) / tmpfeetotal)
+                        : 0
+                );
+            uint256 addedmarketingbalance =
+                (
+                    (_marketingFee > 0)
+                        ? ((notassesed * _marketingFee) / tmpfeetotal)
+                        : 0
+                );
+            uint256 addedotherbalance =
+                (
+                    (_otherFee > 0)
+                        ? ((notassesed * _otherFee) / tmpfeetotal)
+                        : 0
+                );
+
+            _donationbalance = asseseddonationbalance + addeddonationbalance;
+            _marketingbalance = assesedmarketingbalance + addedmarketingbalance;
+            _otherbalance = assesedotherbalance + addedotherbalance;
             _assesedbalance =
                 assesedbalance +
                 addedotherbalance +
                 addedmarketingbalance +
                 addeddonationbalance;
+            return (
+                _donationbalance,
+                _marketingbalance,
+                _otherbalance,
+                _assesedbalance
+            );
         }
-        else {
-            _donationbalance = donationbalance;
-            _marketingbalance = marketingbalance;
-            _otherbalance = otherbalance;
-            _assesedbalance = assesedbalance;
-        }
-        return(_donationbalance, _marketingbalance, _otherbalance, _assesedbalance);
+        _donationbalance = asseseddonationbalance;
+        _marketingbalance = assesedmarketingbalance;
+        _otherbalance = assesedotherbalance;
+        _assesedbalance = assesedbalance;
+        return (
+            _donationbalance,
+            _marketingbalance,
+            _otherbalance,
+            _assesedbalance
+        );
     }
 }

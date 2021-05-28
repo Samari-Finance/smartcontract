@@ -6,3 +6,5 @@ sudo npm install @truffle/hdwallet-provider@1.2.3
 sudo npm install -D truffle-plugin-verify
 sudo npm install ethers
 sudo npm install google-spreadsheet
+sudo npm install truffle-assertions
+sudo npm install ganache-time-traveler
