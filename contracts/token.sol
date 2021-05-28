@@ -793,8 +793,8 @@ contract Samari is Context, IERC20, Pausable, AccessControlEnumerable {
         _rOwned[recipient] = _rOwned[recipient].add(rTransferAmount);
 
         //Update total amount
-        _tOwnedExcluded = _tOwnedExcluded.sub(tAmount);
-        _rOwnedExcluded = _rOwnedExcluded.sub(rAmount);
+        _tOwnedExcluded = _tOwnedExcluded.sub(tTransferAmount);
+        _rOwnedExcluded = _rOwnedExcluded.sub(rTransferAmount);
 
         _takeOtherFee(tOtherFee, sender);
         _reflectFee(rFee, tFee);

@@ -14,8 +14,6 @@ contract("ProxyContract V2 Anti Whale", accounts => {
   let allowedvalue;
   let pairaddress;
 
-  accounts[0] = accounts[3];
-
   beforeEach(async () => {
     let snapshot = await timeMachine.takeSnapshot();
     snapshotId = snapshot['result'];
